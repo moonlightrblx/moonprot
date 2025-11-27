@@ -3,7 +3,7 @@ single-header x64 windows string + function pointer encryption
 lightweight · zero deps · p2c-grade but actually good
 
 ### why
-Most public "xor string" libs are detected in 2 seconds.  
+Most public "xor string" libs are crackable in 20 lines of python.  
 This one uses:
 - 4-stage per-byte encryption
 - per-instance compile-time salts (every string has different keys)
