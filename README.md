@@ -1,74 +1,271 @@
-﻿# moonprot v2
-single-header x64 windows string + function pointer encryption  
-lightweight · zero deps · p2c-grade but actually good
+﻿# moonprot
 
-### why
-Most public "xor string" libs are detected in 2 seconds.  
-This one uses:
-- 4-stage per-byte encryption
-- per-instance compile-time salts (every string has different keys)
-- encrypted function pointers (`enc_fn`)
-- auto wipe + cache flush
-- decoy guard pages
-- control-flow junk
-- everything `__forceinline` on MSVC
+**single-header · x64 Windows · protection / obfuscation library**
+lightweight · zero runtime dependencies
 
-Still < 2 KB compiled. Still single header.
+---
 
-### usage
+## overview
+
+moonprot is a Windows-native protection library focused on **runtime opacity**, not cosmetic obfuscation.
+
+It is designed for:
+
+* internals
+* externals
+* manual-mapped modules
+* loaders
+* protected usermode components
+
+moonprot avoids plaintext, static callsites, and predictable patterns.
+
+---
+
+## core goals
+
+* no plaintext strings in `.rdata`
+* no direct API callsites in `.text`
+* hidden execution paths
+* spoofed callstacks
+* runtime-only decryption
+* manual memory wipe support
+
+---
+
+## features
+
+| feature                       | status  |
+| ----------------------------- | ------- |
+| encrypted strings (XOR)       | working |
+| rolling per-string keys       | working |
+| runtime decrypt only          | working |
+| manual memory wipe (`clear`)  | working |
+| encrypted API calls           | working |
+| callstack spoofing            | working |
+| shellcode execution           | working |
+| hidden code section execution | working |
+| protection helpers            | working |
+
+---
+
+## basic usage
 
 ```cpp
-#include "moonprot.h"
+#include "moonprot/includes.h"
 
-static auto enc_msgbox = moonprot::enc_fn(&MessageBoxA);
+int main()
+{
+    MOON_START_PROTECT
 
-int main() {
-    moonprot::init(); // optional anti-dump noise
+    moonprot::prot::init();
 
-    moon_xor("this string never exists in plaintext on disk")
-        .use([](const char* s) {
-            enc_msgbox(0, s, moon_xor("cap").decrypt(), MB_OK);
-        });
+    auto secret = _cat("login_token_123");
+    printf("%s\n", secret.decrypt());
+    secret.clear();
+
+    moonprot::callstack::spoof_call(&MessageBoxA)(
+        nullptr,
+        "hi",
+        "moonprot",
+        MB_OK
+    );
+
+    MOON_END_PROTECT
 }
 ```
 
-### features
+---
 
-| feature                     | enabled by default |
-|----------------------------|-------------------|
-| 4-stage string encryption   | yes               |
-| per-string random salt      | yes               |
-| encrypted function pointers | yes               |
-| auto memory wipe + clflush  | yes               |
-| guard-page decoys           | yes               |
-| junk control flow           | yes               |
+## macros
 
-### config (change in moonprot.h)
+### code protection
 
-```c++
-namespace moonprot::config {
-    constexpr bool enable_auto_wipe   = true;
-    constexpr bool enable_page_guard  = true;
-    constexpr bool enable_decoy_alloc = true;
-    constexpr bool enable_cf_flatten  = true;
+| macro                | description                                   |
+| -------------------- | --------------------------------------------- |
+| `MOON_START_PROTECT` | executes protected code from a hidden section |
+| `MOON_END_PROTECT`   | required terminator for protected blocks      |
 
-    // change these four keys per project
-    constexpr uint64_t key1 = 0xA9F23C8D9911AE77ULL;
-    constexpr uint64_t key2 = 0xC6EF3720B5D1E9A3ULL;
-    constexpr uint64_t key3 = 0x1F123BB5DEADBEEFULL;
-    constexpr uint64_t key4 = 0x8E5D4C3B2A1907F6ULL;
+> must always be paired
+
+---
+
+### string encryption macros
+
+| macro       | return           | description                   |
+| ----------- | ---------------- | ----------------------------- |
+| `_cat(str)` | encrypted object | compile-time encrypted string |
+| `_C(str)`   | `char*`          | decrypted C-string            |
+| `_(str)`    | `std::string`    | runtime decrypted string      |
+| `_A(str)`   | `LPCSTR`         | WinAPI ANSI string            |
+| `_W(str)`   | `std::wstring`   | WinAPI wide string            |
+
+Example:
+
+```cpp
+auto s = _cat("example");
+s.decrypt();
+s.clear();
+```
+
+---
+
+### rolling XOR logic
+
+Instead of static XOR:
+
+```
+byte ^ key
+```
+
+moonprot uses:
+
+* rolling key state
+* index-based mutation
+* per-byte mixing
+* reversible encryption
+
+Each byte:
+
+1. derives a mixed key
+2. XORs the byte
+3. mutates internal state
+4. propagates entropy forward
+
+This prevents:
+
+* repeating patterns
+* signature-based recovery
+* trivial XOR bruteforce
+
+---
+
+### runtime behavior
+
+* encrypted data only exists in encrypted form in the binary
+* decrypted buffer exists only after `decrypt()`
+* buffer is mutable
+* `clear()` wipes memory manually
+
+No plaintext exists in:
+
+* `.rdata`
+* `.text`
+* static initializers
+
+---
+
+## callstack & API spoofing
+
+moonprot provides a full **callstack spoofing and shellcode execution system**.
+
+---
+
+## callstack module overview
+
+Namespace: `moonprot::callstack`
+
+Capabilities:
+
+* spoof return addresses
+* hide calling functions
+* execute APIs through shellcode
+* eliminate static callsites
+
+---
+
+## `spoof_function`
+
+```cpp
+moonprot::callstack::spoof_func();
+```
+
+* Temporarily overwrites the return address of the current stack frame
+* XORs return address with `SECURITY_KEY`
+* Restores original address automatically via destructor
+
+Example:
+
+```cpp
+{
+    auto spoof = moonprot::callstack::spoof_func();
+    // return address is hidden here
 }
 ```
 
-### macros
+---
 
-- `moon_xor("hello")` → encrypted string
-- `moonprot::enc_fn(&SomeApi)` → encrypted callable wrapper
+## shellcode execution
 
-### tested on
-- MSVC 2022 (x64)
-- Works in cheats, loaders, manual-maps, anything
+### dynamic shellcode allocation
 
-Drop `moonprot.h`, change the four keys, profit.
+* Uses `VirtualAlloc`
+* Allocates `PAGE_EXECUTE_READWRITE`
+* Copies function bytes at runtime
+* Executes from heap memory
 
-Enjoy. This was originally going to be a private release <3.
+This removes:
+
+* static `.text` callsites
+* import-based detection
+* predictable call instructions
+
+---
+
+### `shellcode_generator`
+
+* Wraps function execution
+* Spoofs return address before call
+* Restores after execution
+* Supports `void` and non-`void` returns
+
+---
+
+## `safe_call`
+
+```cpp
+moonprot::callstack::spoof_call(&SomeApi)(args...);
+```
+
+* Encrypts function pointer
+* Resolves call at runtime
+* Executes via shellcode
+* Spoofs callstack during execution
+* Caches shellcode for reuse
+
+---
+
+## example: spoofed funtion call
+
+```cpp
+moonprot::callstack::spoof_call(&MessageBoxA)(
+    nullptr,
+    "hello",
+    "moonprot",
+    MB_OK
+);
+```
+
+No direct calls exist in `.text`.
+
+---
+
+## protection init
+
+```cpp
+moonprot::prot::init();
+```
+
+- more details oming soon
+
+---
+
+## notes
+
+* x64 only
+* MSVC required
+* no CRT / runtime dependencies
+* shellcode memory is RWX
+* excessive spoofing may impact performance
+* designed for advanced Windows-native projects
+
+

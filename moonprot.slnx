@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="moonprot.vcxproj" />
+  <Project Path="moonprot.vcxproj" Id="ea4f09ab-f031-40aa-9ee0-878ff1a52585" />
 </Solution>

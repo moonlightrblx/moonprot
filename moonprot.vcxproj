@@ -70,6 +70,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>.\build\</OutDir>
+    <IntDir>.\build\trash</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -130,7 +134,12 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="moonprot\moon.h" />
+    <ClInclude Include="moonprot\helpers.h" />
+    <ClInclude Include="moonprot\includes.h" />
+    <ClInclude Include="moonprot\lib\callstack.h" />
+    <ClInclude Include="moonprot\lib\debug.h" />
+    <ClInclude Include="moonprot\lib\main.h" />
+    <ClInclude Include="moonprot\lib\xor.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

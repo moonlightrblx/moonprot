@@ -20,7 +20,22 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="moonprot\moon.h">
+    <ClInclude Include="moonprot\lib\xor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="moonprot\includes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="moonprot\lib\debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="moonprot\helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="moonprot\lib\main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="moonprot\lib\callstack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
