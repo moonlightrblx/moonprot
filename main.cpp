@@ -12,7 +12,7 @@ int main()
     auto secret = _cat("login_token_123");
     printf("decrypted should be: login_token_123\ndecrypted: %s\n", secret.decrypt());
     secret.clear(); // should null the secret in memory so x64dbg or other strings detectors cannot read
-
+ 
     printf("calling encrypted MessageBoxA\n");
     // encrypted call to messageboxa
     moonprot::callstack::spoof_call(&MessageBoxA)(
